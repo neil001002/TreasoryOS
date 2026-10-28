@@ -5,19 +5,20 @@ import { ActivityFeed } from '@/components/ActivityFeed'
 import { WalletButton } from '@/components/WalletButton'
 import { Link2, TrendingUp, CreditCard } from 'lucide-react'
 import { formatAddress } from '@/lib/utils'
-import { buildShareLink } from '@/lib/share'
-import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { CCTPBridgeCard } from '@/features/cctp/components/CCTPBridgeCard'
+import { StableFXCard } from '@/features/stablefx/components/StableFXCard'
+
+const FEATURE_CCTP = (import.meta.env.VITE_FEATURE_CCTP as string | undefined) !== 'false'
+const FEATURE_STABLEFX = (import.meta.env.VITE_FEATURE_STABLEFX as string | undefined) !== 'false'
 
 export function Dashboard() {
   const { address, isConnected } = useAccount()
   const navigate = useNavigate()
-  const [payLink, setPayLink] = useState('')
-
-  useEffect(() => {
-    if (!address) return
-    void buildShareLink(`/pay?to=${address}&amount=`).then((base) => setPayLink(base))
-  }, [address])
+  // Use VITE_APP_URL when set (baked in at build time — points at the Vercel deployment).
+  // Falls back to window.location.origin in local dev.
+  const appBase = (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ?? window.location.origin
+  const payLink = address ? `${appBase}/pay?to=${address}&amount=` : ''
 
   if (!isConnected) {
     return (
@@ -70,7 +71,7 @@ export function Dashboard() {
       {/* Quick actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <button
-          onClick={() => { void navigate('/pay') }}
+          onClick={() => { void navigate(address ? `/pay?to=${address}&amount=` : '/pay') }}
           className="flex items-center gap-3 p-4 rounded-2xl bg-white/80 border border-[var(--border)] hover:border-[var(--border-strong)] transition-colors text-left group"
         >
           <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
@@ -108,6 +109,17 @@ export function Dashboard() {
           </div>
         </button>
       </div>
+
+      {/* Treasury tools */}
+      {(FEATURE_CCTP || FEATURE_STABLEFX) && (
+        <div>
+          <h2 className="text-base font-bold text-[var(--ink)] mb-3">Treasury Tools</h2>
+          <div className="space-y-3">
+            {FEATURE_CCTP && <CCTPBridgeCard />}
+            {FEATURE_STABLEFX && <StableFXCard />}
+          </div>
+        </div>
+      )}
 
       {/* Activity */}
       <div>

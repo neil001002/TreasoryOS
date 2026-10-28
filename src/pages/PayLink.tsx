@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { WalletButton } from '@/components/WalletButton'
 import { TxStatus } from '@/components/TxStatus'
 import { NetworkBadge } from '@/components/NetworkBadge'
-import { USDC_ADDRESS, ARC_CHAIN_ID, EXPLORER_BASE } from '@/lib/arc'
+import { useArcNetwork } from '@/context/NetworkContext'
 import { parseUSDCInput, formatAddress, buildTxUrl } from '@/lib/utils'
 import { TokenUSDC } from '@web3icons/react'
 import { ExternalLink, ArrowLeft } from 'lucide-react'
@@ -19,8 +19,9 @@ export function PayLink() {
 
   const { chainId, isConnected } = useAccount()
   const { switchChain } = useSwitchChain()
+  const { usdcAddress, arcChainId, explorerBase } = useArcNetwork()
 
-  const isWrongChain = isConnected && chainId !== ARC_CHAIN_ID
+  const isWrongChain = isConnected && chainId !== arcChainId
   const validTo = isAddress(to)
   const parsedAmount = parseUSDCInput(customAmount)
 
@@ -28,14 +29,14 @@ export function PayLink() {
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
 
   function handlePay() {
-    if (isWrongChain) { switchChain({ chainId: ARC_CHAIN_ID }); return }
+    if (isWrongChain) { switchChain({ chainId: arcChainId }); return }
     if (!parsedAmount || !validTo) return
     writeContract({
-      address: USDC_ADDRESS,
+      address: usdcAddress,
       abi: erc20Abi,
       functionName: 'transfer',
       args: [to, parsedAmount],
-      chainId: ARC_CHAIN_ID,
+      chainId: arcChainId,
     })
   }
 
@@ -74,7 +75,7 @@ export function PayLink() {
           <div className="p-4 rounded-xl bg-[var(--surface-muted)] space-y-1">
             <p className="text-xs text-[var(--muted)] font-medium">Paying to</p>
             <a
-              href={`${EXPLORER_BASE}/address/${to}`}
+              href={`${explorerBase}/address/${to}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-sm font-semibold text-[var(--ink)] mono hover:text-[var(--accent)] transition-colors"
@@ -125,7 +126,7 @@ export function PayLink() {
               <TxStatus isSuccess hash={hash} />
               {hash && (
                 <a
-                  href={buildTxUrl(hash)}
+                  href={buildTxUrl(hash, explorerBase)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1.5 text-sm text-[var(--accent)] hover:underline"

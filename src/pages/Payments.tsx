@@ -3,7 +3,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchCh
 import { erc20Abi } from 'viem'
 import { toast } from 'sonner'
 import { TREASURY_SPLITTER_ABI } from '@/lib/abi'
-import { TREASURY_SPLITTER_ADDRESS, USDC_ADDRESS, ARC_CHAIN_ID } from '@/lib/arc'
+import { useArcNetwork } from '@/context/NetworkContext'
 import { ContractBalanceCard } from '@/components/BalanceCard'
 import { PayContractorForm } from '@/components/PayContractorForm'
 import { TxStatus } from '@/components/TxStatus'
@@ -14,9 +14,10 @@ export function Payments() {
   const [depositAmount, setDepositAmount] = useState('')
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
+  const { contractAddress, usdcAddress, arcChainId } = useArcNetwork()
 
-  const isDeployed = !!TREASURY_SPLITTER_ADDRESS
-  const isWrongChain = chainId !== ARC_CHAIN_ID
+  const isDeployed = !!contractAddress
+  const isWrongChain = chainId !== arcChainId
 
   const { writeContract: approve, data: approveHash, isPending: approving } = useWriteContract()
   const { isLoading: approveConfirming, isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
@@ -34,25 +35,25 @@ export function Payments() {
   const parsedDeposit = parseUSDCInput(depositAmount)
 
   function handleApprove() {
-    if (isWrongChain) { switchChain({ chainId: ARC_CHAIN_ID }); return }
+    if (isWrongChain) { switchChain({ chainId: arcChainId }); return }
     if (!parsedDeposit) return
     approve({
-      address: USDC_ADDRESS,
+      address: usdcAddress,
       abi: erc20Abi,
       functionName: 'approve',
-      args: [TREASURY_SPLITTER_ADDRESS, parsedDeposit],
-      chainId: ARC_CHAIN_ID,
+      args: [contractAddress, parsedDeposit],
+      chainId: arcChainId,
     })
   }
 
   function handleDeposit() {
     if (!parsedDeposit) return
     deposit({
-      address: TREASURY_SPLITTER_ADDRESS,
+      address: contractAddress,
       abi: TREASURY_SPLITTER_ABI,
       functionName: 'depositForContractors',
       args: [parsedDeposit],
-      chainId: ARC_CHAIN_ID,
+      chainId: arcChainId,
     })
   }
 

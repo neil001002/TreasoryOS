@@ -10,12 +10,14 @@ export function formatAddress(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`
 }
 
-export function buildTxUrl(txHash: string): string {
-  return `${EXPLORER_BASE}/tx/${txHash}`
+/** Build a tx explorer URL. Pass `explorerBase` from `useArcNetwork()` to get the right network. */
+export function buildTxUrl(txHash: string, explorerBase: string = EXPLORER_BASE): string {
+  return `${explorerBase}/tx/${txHash}`
 }
 
-export function buildAddressUrl(address: string): string {
-  return `${EXPLORER_BASE}/address/${address}`
+/** Build an address explorer URL. Pass `explorerBase` from `useArcNetwork()` to get the right network. */
+export function buildAddressUrl(address: string, explorerBase: string = EXPLORER_BASE): string {
+  return `${explorerBase}/address/${address}`
 }
 
 /** Format a USDC bigint (6 decimals) to a display string. */

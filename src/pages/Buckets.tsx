@@ -3,7 +3,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchCh
 import { isAddress } from 'viem'
 import { toast } from 'sonner'
 import { TREASURY_SPLITTER_ABI } from '@/lib/abi'
-import { TREASURY_SPLITTER_ADDRESS, ARC_CHAIN_ID } from '@/lib/arc'
+import { useArcNetwork } from '@/context/NetworkContext'
 import { BucketList } from '@/components/BucketList'
 import { DistributeForm } from '@/components/DistributeForm'
 import { TxStatus } from '@/components/TxStatus'
@@ -24,11 +24,12 @@ const DEFAULT_ROWS: BucketRow[] = [
 export function Buckets() {
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
+  const { contractAddress, arcChainId } = useArcNetwork()
   const [rows, setRows] = useState<BucketRow[]>(DEFAULT_ROWS)
   const [configOpen, setConfigOpen] = useState(false)
 
-  const isDeployed = !!TREASURY_SPLITTER_ADDRESS
-  const isWrongChain = chainId !== ARC_CHAIN_ID
+  const isDeployed = !!contractAddress
+  const isWrongChain = chainId !== arcChainId
 
   const {
     writeContract: updateConfig,
@@ -44,16 +45,16 @@ export function Buckets() {
   const allValid = rows.every((r) => isAddress(r.address)) && totalPct === 100
 
   function handleUpdate() {
-    if (isWrongChain) { switchChain({ chainId: ARC_CHAIN_ID }); return }
+    if (isWrongChain) { switchChain({ chainId: arcChainId }); return }
     if (!allValid || !address) return
     const buckets = rows.map((r) => r.address as `0x${string}`)
     const percentages = rows.map((r) => BigInt(Math.round((parseInt(r.percentage) || 0) * 100)))
     updateConfig({
-      address: TREASURY_SPLITTER_ADDRESS,
+      address: contractAddress,
       abi: TREASURY_SPLITTER_ABI,
       functionName: 'updateBucketConfig',
       args: [buckets, percentages],
-      chainId: ARC_CHAIN_ID,
+      chainId: arcChainId,
     })
   }
 

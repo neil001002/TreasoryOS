@@ -4,15 +4,18 @@
 
 | Contract | Network | Address | Explorer |
 |---|---|---|---|
-| TreasurySplitter | Arc Testnet | `0xa90bcefa574a78af25528191fef7e97471e5ca95` | [View](https://explorer.testnet.arc.io/address/0xa90bcefa574a78af25528191fef7e97471e5ca95) |
-| TreasurySplitter | Arc Mainnet | _not yet deployed — deploy from your own wallet and set `VITE_TREASURY_SPLITTER_ADDRESS`_ | — |
+| TreasurySplitter v1 (deprecated) | Arc Testnet | `0xa90bcefa574a78af25528191fef7e97471e5ca95` | [View](https://explorer.testnet.arc.io/address/0xa90bcefa574a78af25528191fef7e97471e5ca95) |
+| TreasurySplitter v2 (active) | Arc Testnet | `0x17ba9334e74b537ed0729b829331719dd2039d3d` | [View](https://explorer.testnet.arc.io/address/0x17ba9334e74b537ed0729b829331719dd2039d3d) |
+| TreasurySplitter v1 (active) | Arc Mainnet | `0x161d1E220b8C4E4C2b79387779074b6EEfCae3e3` | [View](https://explorer.arc.io/address/0x161d1E220b8C4E4C2b79387779074b6EEfCae3e3) |
 
 ## Constructor Args Used
 
 - `_usdc`: `0x3600000000000000000000000000000000000000` (Arc Testnet USDC)
-- `_owner`: `0x5B12Ce46C7194aD57d143bC22847224047b1Ef42` (platform deployer wallet)
-- Initial buckets: all set to the deployer address (placeholder — user must call `updateBucketConfig` with their own addresses)
-- Initial percentages: 5000 / 3000 / 2000 bps (50% / 30% / 20%)
+- `_owner`: `0xed5531eF182B973D08f09390083366716fae6498` (user's own wallet — controls payContractor + updateBucketConfig)
+- Operating (50%): `0x1E8fa0f0f03bd7B2EEB269E59311CcFF41e68dEC`
+- Tax (30%): `0xF611d9fF9E6EE7FFbF24eF1730A6e7F47349dD99`
+- Savings (20%): `0xa752df45ec53E12A991cC211b13F6A7ca4048Baa`
+- Percentages: 5000 / 3000 / 2000 bps (50% / 30% / 20%)
 
 ## Key Design Decisions
 
@@ -24,5 +27,7 @@
 
 ## Environment
 
-- `VITE_ARC_CHAIN_ID=5042002` — Arc Testnet
-- `VITE_TREASURY_SPLITTER_ADDRESS=0xa90bcefa574a78af25528191fef7e97471e5ca95`
+- `VITE_ARC_NETWORK=testnet` — Arc Testnet (default)
+- `VITE_ARC_NETWORK=mainnet` — Arc Mainnet
+- `VITE_TREASURY_SPLITTER_TESTNET=0x17ba9334e74b537ed0729b829331719dd2039d3d`
+- `VITE_TREASURY_SPLITTER_MAINNET=0x161d1E220b8C4E4C2b79387779074b6EEfCae3e3`

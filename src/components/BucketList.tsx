@@ -1,30 +1,30 @@
 import { useReadContract } from 'wagmi'
 import { erc20Abi } from 'viem'
 import { TREASURY_SPLITTER_ABI } from '@/lib/abi'
-import { TREASURY_SPLITTER_ADDRESS, USDC_ADDRESS, ARC_CHAIN_ID } from '@/lib/arc'
+import { useArcNetwork } from '@/context/NetworkContext'
 import { formatUSDC, formatAddress, buildAddressUrl, BUCKET_NAMES, BUCKET_BG } from '@/lib/utils'
 import { ExternalLink } from 'lucide-react'
 
 export function BucketList() {
-  const isDeployed = !!TREASURY_SPLITTER_ADDRESS
+  const { contractAddress, usdcAddress, arcChainId, explorerBase } = useArcNetwork()
+  const isDeployed = !!contractAddress
 
   const { data: bucketsData, isLoading } = useReadContract({
-    address: TREASURY_SPLITTER_ADDRESS,
+    address: contractAddress,
     abi: TREASURY_SPLITTER_ABI,
     functionName: 'getBuckets',
-    chainId: ARC_CHAIN_ID,
+    chainId: arcChainId,
     query: { enabled: isDeployed },
   })
 
   const bucketAddresses = (bucketsData?.[0] ?? []) as `0x${string}`[]
   const bucketPercentages = (bucketsData?.[1] ?? []) as bigint[]
 
-  // Read balances for each bucket address (up to 5)
-  const b0 = useReadContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'balanceOf', args: bucketAddresses[0] ? [bucketAddresses[0]] : undefined, chainId: ARC_CHAIN_ID, query: { enabled: !!bucketAddresses[0] } })
-  const b1 = useReadContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'balanceOf', args: bucketAddresses[1] ? [bucketAddresses[1]] : undefined, chainId: ARC_CHAIN_ID, query: { enabled: !!bucketAddresses[1] } })
-  const b2 = useReadContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'balanceOf', args: bucketAddresses[2] ? [bucketAddresses[2]] : undefined, chainId: ARC_CHAIN_ID, query: { enabled: !!bucketAddresses[2] } })
-  const b3 = useReadContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'balanceOf', args: bucketAddresses[3] ? [bucketAddresses[3]] : undefined, chainId: ARC_CHAIN_ID, query: { enabled: !!bucketAddresses[3] } })
-  const b4 = useReadContract({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'balanceOf', args: bucketAddresses[4] ? [bucketAddresses[4]] : undefined, chainId: ARC_CHAIN_ID, query: { enabled: !!bucketAddresses[4] } })
+  const b0 = useReadContract({ address: usdcAddress, abi: erc20Abi, functionName: 'balanceOf', args: bucketAddresses[0] ? [bucketAddresses[0]] : undefined, chainId: arcChainId, query: { enabled: !!bucketAddresses[0] } })
+  const b1 = useReadContract({ address: usdcAddress, abi: erc20Abi, functionName: 'balanceOf', args: bucketAddresses[1] ? [bucketAddresses[1]] : undefined, chainId: arcChainId, query: { enabled: !!bucketAddresses[1] } })
+  const b2 = useReadContract({ address: usdcAddress, abi: erc20Abi, functionName: 'balanceOf', args: bucketAddresses[2] ? [bucketAddresses[2]] : undefined, chainId: arcChainId, query: { enabled: !!bucketAddresses[2] } })
+  const b3 = useReadContract({ address: usdcAddress, abi: erc20Abi, functionName: 'balanceOf', args: bucketAddresses[3] ? [bucketAddresses[3]] : undefined, chainId: arcChainId, query: { enabled: !!bucketAddresses[3] } })
+  const b4 = useReadContract({ address: usdcAddress, abi: erc20Abi, functionName: 'balanceOf', args: bucketAddresses[4] ? [bucketAddresses[4]] : undefined, chainId: arcChainId, query: { enabled: !!bucketAddresses[4] } })
   const balances = [b0.data, b1.data, b2.data, b3.data, b4.data]
 
   if (!isDeployed) {
@@ -62,17 +62,14 @@ export function BucketList() {
         const colorClass = BUCKET_BG[name] ?? 'bg-gray-50 text-gray-700'
 
         return (
-          <div
-            key={addr}
-            className="flex items-center gap-4 p-5 rounded-2xl bg-white/80 border border-[var(--border)]"
-          >
+          <div key={addr} className="flex items-center gap-4 p-5 rounded-2xl bg-white/80 border border-[var(--border)]">
             <div className={`px-2.5 py-1 rounded-lg text-xs font-bold ${colorClass}`}>
               {pct.toFixed(0)}%
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[var(--ink)]">{name}</p>
               <a
-                href={buildAddressUrl(addr)}
+                href={buildAddressUrl(addr, explorerBase)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-[var(--muted)] mono hover:text-[var(--accent)] transition-colors"

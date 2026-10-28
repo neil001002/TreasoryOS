@@ -1,13 +1,20 @@
 {
-  "contractAddress": "0xa90bcefa574a78af25528191fef7e97471e5ca95",
+  "contractAddress": "0x17ba9334e74b537ed0729b829331719dd2039d3d",
   "network": "ARC-TESTNET",
   "deployerWalletId": "3c2464b2-8369-52e2-a782-800bbeca5396",
   "contract_code_path": "/home/user/app/contracts/TreasurySplitter.sol",
   "contract_compiled_code_path": "/home/user/app/contracts/out/TreasurySplitter.sol/TreasurySplitter.json",
   "contract_network_and_links": {
-    "Arc Testnet": "https://explorer.testnet.arc.io/address/0xa90bcefa574a78af25528191fef7e97471e5ca95"
+    "Arc Testnet": "https://explorer.testnet.arc.io/address/0x17ba9334e74b537ed0729b829331719dd2039d3d"
   },
   "contract_deployments": [
+    {
+      "chain": "Arc Testnet",
+      "address": "0x17ba9334e74b537ed0729b829331719dd2039d3d",
+      "explorerUrl": "https://explorer.testnet.arc.io/address/0x17ba9334e74b537ed0729b829331719dd2039d3d",
+      "txHash": "0x31b4a8bc25e6462537384264a6b027b5f2e5d5e68a44347793efdd7dcef06b91",
+      "deployedAt": "2026-10-26T13:18:13.134Z"
+    },
     {
       "chain": "Arc Testnet",
       "address": "0xa90bcefa574a78af25528191fef7e97471e5ca95",

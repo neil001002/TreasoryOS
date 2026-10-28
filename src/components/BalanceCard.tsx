@@ -1,6 +1,6 @@
 import { useAccount, useReadContract } from 'wagmi'
 import { erc20Abi } from 'viem'
-import { USDC_ADDRESS, ARC_CHAIN_ID, TREASURY_SPLITTER_ADDRESS } from '@/lib/arc'
+import { useArcNetwork } from '@/context/NetworkContext'
 import { formatUSDC } from '@/lib/utils'
 import { TokenUSDC } from '@web3icons/react'
 
@@ -12,14 +12,15 @@ interface BalanceCardProps {
 
 export function BalanceCard({ label, address, className = '' }: BalanceCardProps) {
   const { address: connectedAddress } = useAccount()
+  const { usdcAddress, arcChainId } = useArcNetwork()
   const target = address ?? connectedAddress
 
   const { data: balance, isLoading } = useReadContract({
-    address: USDC_ADDRESS,
+    address: usdcAddress,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: target ? [target] : undefined,
-    chainId: ARC_CHAIN_ID,
+    chainId: arcChainId,
     query: { enabled: !!target },
   })
 
@@ -44,14 +45,15 @@ export function BalanceCard({ label, address, className = '' }: BalanceCardProps
 }
 
 export function ContractBalanceCard() {
-  const isDeployed = !!TREASURY_SPLITTER_ADDRESS
+  const { usdcAddress, arcChainId, contractAddress } = useArcNetwork()
+  const isDeployed = !!contractAddress
 
   const { data: balance, isLoading } = useReadContract({
-    address: USDC_ADDRESS,
+    address: usdcAddress,
     abi: erc20Abi,
     functionName: 'balanceOf',
-    args: TREASURY_SPLITTER_ADDRESS ? [TREASURY_SPLITTER_ADDRESS] : undefined,
-    chainId: ARC_CHAIN_ID,
+    args: contractAddress ? [contractAddress] : undefined,
+    chainId: arcChainId,
     query: { enabled: isDeployed },
   })
 

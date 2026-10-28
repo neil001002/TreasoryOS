@@ -21,6 +21,7 @@ import { ConnectKitProvider } from 'connectkit'
 import { Toaster } from 'sonner'
 import { config } from './config'
 import { CircleWalletProvider } from './context/CircleWalletContext'
+import { NetworkProvider } from './context/NetworkContext'
 import App from './App'
 import './index.css'
 
@@ -71,6 +72,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
+        <NetworkProvider>
         <CircleWalletProvider>
         <ConnectKitProvider
           options={{
@@ -87,6 +89,7 @@ createRoot(document.getElementById('root')!).render(
           <Toaster position="top-center" />
         </ConnectKitProvider>
         </CircleWalletProvider>
+        </NetworkProvider>
       </QueryClientProvider>
     </WagmiProvider>
   </StrictMode>,

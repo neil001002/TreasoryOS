@@ -47,12 +47,22 @@ Copy `env.example` to `.env` and fill in your values.
 
 | Variable | Purpose | Required |
 |---|---|---|
-| `VITE_ARC_CHAIN_ID` | Chain ID: `5042002` = Arc Testnet, `5042` = Arc Mainnet | No (defaults to `5042002`) |
-| `VITE_TREASURY_SPLITTER_ADDRESS` | Deployed TreasurySplitter address for the active chain | No (app works without it, shows setup prompts) |
-| `VITE_TREASURY_SPLITTER_TESTNET_ADDRESS` | Testnet deployment for reference | No |
-| `RPC_PROXY_BASE_URL` | Arc Studio RPC proxy base URL | Optional outside Arc Studio |
+| `VITE_ARC_NETWORK` | `testnet` (default) or `mainnet` — flips all chain config at once | No |
+| `VITE_TREASURY_SPLITTER_TESTNET` | TreasurySplitter address on Arc Testnet | No (testnet already deployed) |
+| `VITE_TREASURY_SPLITTER_MAINNET` | TreasurySplitter address on Arc Mainnet — fill after `forge create` | No |
+| `VITE_WC_PROJECT_ID` | WalletConnect Cloud project ID — enables mobile wallets | Yes for mobile |
+| `VITE_CLIENT_KEY` | Circle Console Client Key — enables passkey wallet connection | No |
+| `VITE_CLIENT_URL` | Circle API URL (default `https://api.circle.com`) | No |
+| `VITE_APP_URL` | Your deployed app URL — used for shareable payment links | Yes (set to Vercel URL) |
+| `RPC_PROXY_BASE_URL` | Arc Studio RPC proxy | Optional outside Arc Studio |
 | `RPC_PROXY_TOKEN` | Arc Studio RPC proxy token | Optional outside Arc Studio |
 | `RPC_PROXY_CHAINS` | Comma-separated chain keys for the proxy | Optional outside Arc Studio |
+
+**To switch networks**, change one line in `.env` and restart the dev server:
+```
+VITE_ARC_NETWORK=mainnet   # → Arc Mainnet (chain 5042, real USDC)
+VITE_ARC_NETWORK=testnet   # → Arc Testnet (chain 5042002, free testnet USDC)
+```
 
 ### Run locally
 
@@ -93,13 +103,13 @@ Constructor args (in order):
 3. `_buckets` — array of 2–5 wallet addresses (e.g. `["0xOperating","0xTax","0xSavings"]`)
 4. `_percentages` — basis points per bucket, must sum to 10000 (e.g. `[5000,3000,2000]`)
 
-**Arc Testnet** (already deployed — for development):
+**Arc Testnet** (already deployed — use for development):
 ```
-VITE_ARC_CHAIN_ID=5042002
-VITE_TREASURY_SPLITTER_ADDRESS=0xa90bcefa574a78af25528191fef7e97471e5ca95
+VITE_ARC_NETWORK=testnet
+VITE_TREASURY_SPLITTER_TESTNET=0x17ba9334e74b537ed0729b829331719dd2039d3d
 ```
 
-**Arc Mainnet** (deploy from your own wallet — involves real funds):
+**Arc Mainnet** (deploy from your own wallet — involves real USDC):
 
 > **Warning:** Arc Mainnet uses real USDC. Independently review and test on testnet before deploying. You are solely responsible for the deployment and its operation.
 
@@ -117,8 +127,8 @@ forge create contracts/TreasurySplitter.sol:TreasurySplitter \
 
 Then update `.env`:
 ```
-VITE_ARC_CHAIN_ID=5042
-VITE_TREASURY_SPLITTER_ADDRESS=<your deployed mainnet address>
+VITE_ARC_NETWORK=mainnet
+VITE_TREASURY_SPLITTER_MAINNET=<your deployed mainnet address>
 ```
 
 Restart the dev server after any `.env` change — Vite reads env files only at startup.
