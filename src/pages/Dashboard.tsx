@@ -1,13 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 import { useAccount } from 'wagmi'
-import { BalanceCard, ContractBalanceCard } from '@/components/BalanceCard'
+import { ContractBalanceCard } from '@/components/BalanceCard'
+import { StablecoinBalances } from '@/components/StablecoinBalances'
 import { ActivityFeed } from '@/components/ActivityFeed'
 import { WalletButton } from '@/components/WalletButton'
-import { Link2, TrendingUp, CreditCard } from 'lucide-react'
+import { SetupTreasury } from '@/components/SetupTreasury'
+import { Link2, TrendingUp, CreditCard, Loader2 } from 'lucide-react'
 import { formatAddress } from '@/lib/utils'
 import { toast } from 'sonner'
 import { CCTPBridgeCard } from '@/features/cctp/components/CCTPBridgeCard'
 import { StableFXCard } from '@/features/stablefx/components/StableFXCard'
+import { useTreasury } from '@/hooks/useTreasury'
+import { useArcNetwork } from '@/context/NetworkContext'
 
 const FEATURE_CCTP = (import.meta.env.VITE_FEATURE_CCTP as string | undefined) !== 'false'
 const FEATURE_STABLEFX = (import.meta.env.VITE_FEATURE_STABLEFX as string | undefined) !== 'false'
@@ -15,11 +19,13 @@ const FEATURE_STABLEFX = (import.meta.env.VITE_FEATURE_STABLEFX as string | unde
 export function Dashboard() {
   const { address, isConnected } = useAccount()
   const navigate = useNavigate()
-  // Use VITE_APP_URL when set (baked in at build time — points at the Vercel deployment).
-  // Falls back to window.location.origin in local dev.
+  const { factoryAddress } = useArcNetwork()
+  const { treasuryAddress, isLoading, refetch } = useTreasury()
+
   const appBase = (import.meta.env.VITE_APP_URL as string | undefined)?.replace(/\/$/, '') ?? window.location.origin
   const payLink = address ? `${appBase}/pay?to=${address}&amount=` : ''
 
+  // Not connected
   if (!isConnected) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
@@ -27,6 +33,21 @@ export function Dashboard() {
         <WalletButton />
       </div>
     )
+  }
+
+  // Loading treasury lookup
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <Loader2 className="w-6 h-6 animate-spin text-[var(--accent)]" />
+        <p className="text-[var(--muted)] text-sm">Checking your treasury...</p>
+      </div>
+    )
+  }
+
+  // No treasury yet — show setup (only when factory is configured)
+  if (!treasuryAddress && factoryAddress) {
+    return <SetupTreasury onCreated={() => { void refetch() }} />
   }
 
   return (
@@ -41,9 +62,14 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Balances */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <BalanceCard label="Your USDC Balance" />
+      {/* Stablecoin wallet balances */}
+      <div>
+        <h2 className="text-base font-bold text-[var(--ink)] mb-3">Wallet Balances</h2>
+        <StablecoinBalances />
+      </div>
+
+      {/* Contract pool + payment link */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <ContractBalanceCard />
         <div className="rounded-2xl bg-white/80 border border-[var(--border)] p-5 backdrop-blur-sm flex flex-col justify-between">
           <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-2">

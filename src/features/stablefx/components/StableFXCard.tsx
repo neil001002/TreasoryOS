@@ -1,15 +1,15 @@
 /**
- * StableFXCard — "Convert to local stablecoin" UI.
+ * StableFXCard — bidirectional stablecoin conversion UI.
  *
- * Amount input → token selector → "Get quote" → show estimate → "Swap" button.
- * swap() only fires from the explicit user click after reviewing the estimate.
+ * Any token → any other token (USDC ↔ EURC, USDC ↔ cirBTC, EURC ↔ cirBTC).
+ * Arrow button flips the pair. Quote → review → Swap.
  */
 
 import { useState } from 'react'
 import { useAccount } from 'wagmi'
-import { ChevronDown, ExternalLink, Loader2, CheckCircle2, RefreshCw, ArrowDown } from 'lucide-react'
+import { ChevronDown, ExternalLink, Loader2, CheckCircle2, RefreshCw, ArrowUpDown } from 'lucide-react'
 import { useStableFXSwap } from '../hooks/useStableFXSwap'
-import { STABLEFX_TARGET_TOKENS } from '../lib/tokens'
+import { SWAP_TOKENS, isSameToken, isNoOpSwap } from '../lib/tokens'
 import { useArcNetwork } from '@/context/NetworkContext'
 import { toast } from 'sonner'
 
@@ -19,16 +19,47 @@ export function StableFXCard() {
   const { state, estimateSwap, executeSwap, reset } = useStableFXSwap()
 
   const [amount, setAmount] = useState('')
-  const [selectedToken, setSelectedToken] = useState(STABLEFX_TARGET_TOKENS[0].symbol)
+  const [tokenIn, setTokenIn] = useState('USDC')
+  const [tokenOut, setTokenOut] = useState('EURC')
   const [expanded, setExpanded] = useState(false)
 
-  const selectedTokenMeta = STABLEFX_TARGET_TOKENS.find((t) => t.symbol === selectedToken)
+  const tokenInMeta = SWAP_TOKENS.find((t) => t.symbol === tokenIn)
+  const tokenOutMeta = SWAP_TOKENS.find((t) => t.symbol === tokenOut)
+
+  // Available targets exclude the current source (and NATIVE which is USDC on Arc)
+  const tokensForOut = SWAP_TOKENS.filter((t) => t.symbol !== tokenIn && !isNoOpSwap(tokenIn, t.symbol))
+  const tokensForIn  = SWAP_TOKENS.filter((t) => t.symbol !== tokenOut && !isNoOpSwap(t.symbol, tokenOut))
+
+  function handleFlip() {
+    setTokenIn(tokenOut)
+    setTokenOut(tokenIn)
+    reset()
+  }
+
+  function handleSetTokenIn(sym: string) {
+    setTokenIn(sym)
+    // If out would become the same or a no-op, pick the first valid alternative
+    if (isSameToken(sym, tokenOut) || isNoOpSwap(sym, tokenOut)) {
+      const alt = SWAP_TOKENS.find((t) => t.symbol !== sym && !isNoOpSwap(sym, t.symbol))
+      if (alt) setTokenOut(alt.symbol)
+    }
+    reset()
+  }
+
+  function handleSetTokenOut(sym: string) {
+    setTokenOut(sym)
+    if (isSameToken(tokenIn, sym) || isNoOpSwap(tokenIn, sym)) {
+      const alt = SWAP_TOKENS.find((t) => t.symbol !== sym && !isNoOpSwap(t.symbol, sym))
+      if (alt) setTokenIn(alt.symbol)
+    }
+    reset()
+  }
 
   const onGetQuote = async () => {
     if (!address) { toast.error('Connect your wallet first'); return }
     if (!amount || Number(amount) <= 0) { toast.error('Enter a valid amount'); return }
     try {
-      await estimateSwap(amount, selectedToken)
+      await estimateSwap(amount, tokenIn, tokenOut)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Estimation failed')
     }
@@ -56,8 +87,8 @@ export function StableFXCard() {
         <div className="flex items-center gap-3">
           <span className="text-2xl">💱</span>
           <div>
-            <p className="font-semibold text-[var(--ink)]">Convert to local stablecoin</p>
-            <p className="text-xs text-[var(--muted)]">Swap USDC → EURC or cirBTC on Arc</p>
+            <p className="font-semibold text-[var(--ink)]">Convert stablecoins</p>
+            <p className="text-xs text-[var(--muted)]">Swap USDC, EURC, or cirBTC in any direction</p>
           </div>
         </div>
         <ChevronDown
@@ -68,7 +99,7 @@ export function StableFXCard() {
       {expanded && (
         <div className="px-6 pb-6 border-t border-[var(--border)]">
 
-          {/* Success */}
+          {/* ── Success ── */}
           {state.status === 'success' && (
             <div className="mt-4 space-y-3">
               <div className="flex items-center gap-2 text-emerald-600 font-medium">
@@ -77,7 +108,7 @@ export function StableFXCard() {
               </div>
               {state.amountOut && (
                 <p className="text-sm text-[var(--ink)]">
-                  You received <strong>{state.amountOut} {selectedToken}</strong>
+                  You received <strong>{state.amountOut} {tokenOut}</strong>
                 </p>
               )}
               {state.txHash && state.explorerUrl && (
@@ -100,21 +131,19 @@ export function StableFXCard() {
             </div>
           )}
 
-          {/* Form: idle / estimating / reviewed / error */}
+          {/* ── Form: idle / estimating / reviewed / error ── */}
           {state.status !== 'success' && state.status !== 'swapping' && (
-            <div className="mt-4 space-y-4">
+            <div className="mt-4 space-y-3">
               {state.errorMessage && (
                 <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
                   {state.errorMessage}
                 </div>
               )}
 
-              {/* Amount in */}
+              {/* ── You pay ── */}
               <div>
-                <label className="block text-xs font-medium text-[var(--muted)] mb-1.5">
-                  You pay
-                </label>
-                <div className="relative">
+                <label className="block text-xs font-medium text-[var(--muted)] mb-1.5">You pay</label>
+                <div className="flex gap-2">
                   <input
                     type="number"
                     min="0"
@@ -122,31 +151,49 @@ export function StableFXCard() {
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => { setAmount(e.target.value); reset() }}
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 pr-16 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                    className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 text-sm text-[var(--ink)] placeholder:text-[var(--muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-[var(--muted)]">
-                    USDC
-                  </span>
+                  <div className="relative">
+                    <select
+                      value={tokenIn}
+                      onChange={(e) => handleSetTokenIn(e.target.value)}
+                      className="appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] pl-3 pr-8 py-2.5 text-sm font-semibold text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] cursor-pointer"
+                    >
+                      {tokensForIn.concat(tokenInMeta ? [tokenInMeta] : [])
+                        .filter((t, i, arr) => arr.findIndex(x => x.symbol === t.symbol) === i)
+                        .map((t) => (
+                          <option key={t.symbol} value={t.symbol}>
+                            {t.flag} {t.label}
+                          </option>
+                        ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--muted)]" />
+                  </div>
                 </div>
               </div>
 
-              {/* Arrow */}
+              {/* ── Flip button ── */}
               <div className="flex justify-center">
-                <ArrowDown className="w-4 h-4 text-[var(--muted)]" />
+                <button
+                  type="button"
+                  onClick={handleFlip}
+                  title="Flip direction"
+                  className="w-8 h-8 rounded-full border border-[var(--border)] bg-white flex items-center justify-center hover:bg-[var(--surface)] transition-colors"
+                >
+                  <ArrowUpDown className="w-4 h-4 text-[var(--muted)]" />
+                </button>
               </div>
 
-              {/* Token out selector */}
+              {/* ── You receive ── */}
               <div>
-                <label className="block text-xs font-medium text-[var(--muted)] mb-1.5">
-                  You receive
-                </label>
+                <label className="block text-xs font-medium text-[var(--muted)] mb-1.5">You receive</label>
                 <div className="relative">
                   <select
-                    value={selectedToken}
-                    onChange={(e) => { setSelectedToken(e.target.value); reset() }}
-                    className="w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 pr-10 text-sm text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                    value={tokenOut}
+                    onChange={(e) => handleSetTokenOut(e.target.value)}
+                    className="w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 pr-10 text-sm font-semibold text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                   >
-                    {STABLEFX_TARGET_TOKENS.map((t) => (
+                    {tokensForOut.map((t) => (
                       <option key={t.symbol} value={t.symbol}>
                         {t.flag} {t.label} — {t.description}
                       </option>
@@ -156,17 +203,17 @@ export function StableFXCard() {
                 </div>
               </div>
 
-              {/* Quote result */}
+              {/* ── Quote result ── */}
               {hasReview && state.reviewed && (
                 <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] px-4 py-3 space-y-1.5">
                   <p className="text-xs font-medium text-[var(--muted)]">Quote</p>
                   <div className="flex items-baseline justify-between">
                     <span className="text-sm text-[var(--ink)]">
-                      {state.reviewed.amountIn} USDC
+                      {state.reviewed.amountIn} {state.reviewed.tokenIn}
                     </span>
                     <span className="text-sm font-semibold text-[var(--ink)]">
                       ≈ {state.reviewed.estimate.estimatedOutput?.amount ?? '—'}{' '}
-                      {state.reviewed.estimate.estimatedOutput?.token ?? selectedToken}
+                      {state.reviewed.estimate.estimatedOutput?.token ?? tokenOut}
                     </span>
                   </div>
                   {state.reviewed.estimate.fees?.map((fee, i) => (
@@ -175,19 +222,19 @@ export function StableFXCard() {
                     </p>
                   ))}
                   <p className="text-xs text-[var(--muted)]">
-                    Swap routed through Circle's swap service. Rate is indicative — 1% slippage tolerance applied.
+                    Routed via Circle's swap service. 1% slippage tolerance applied.
                   </p>
                 </div>
               )}
 
-              {/* Mainnet warning */}
+              {/* ── Mainnet warning ── */}
               {isMainnet && (
                 <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800">
-                  You are on Arc Mainnet. This swap moves real USDC. Review the quote carefully before confirming.
+                  You are on Arc Mainnet. This swap moves real funds. Review the quote carefully before confirming.
                 </div>
               )}
 
-              {/* Buttons */}
+              {/* ── Action buttons ── */}
               {!hasReview ? (
                 <button
                   type="button"
@@ -202,7 +249,7 @@ export function StableFXCard() {
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => { reset(); }}
+                    onClick={() => reset()}
                     className="flex-1 rounded-xl border border-[var(--border)] text-[var(--ink)] py-3 text-sm font-medium hover:bg-[var(--surface)] transition"
                   >
                     Cancel
@@ -212,14 +259,14 @@ export function StableFXCard() {
                     onClick={() => void onSwap()}
                     className="flex-1 rounded-xl bg-[var(--accent)] text-white py-3 text-sm font-semibold hover:opacity-90 transition"
                   >
-                    Swap {amount} USDC → {selectedTokenMeta?.label ?? selectedToken}
+                    Swap {amount} {tokenInMeta?.label} → {tokenOutMeta?.label}
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Swapping spinner */}
+          {/* ── Swapping spinner ── */}
           {state.status === 'swapping' && (
             <div className="mt-4 flex flex-col items-center gap-3 py-6 text-[var(--muted)]">
               <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />

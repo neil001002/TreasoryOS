@@ -7,6 +7,8 @@
 | TreasurySplitter v1 (deprecated) | Arc Testnet | `0xa90bcefa574a78af25528191fef7e97471e5ca95` | [View](https://explorer.testnet.arc.io/address/0xa90bcefa574a78af25528191fef7e97471e5ca95) |
 | TreasurySplitter v2 (active) | Arc Testnet | `0x17ba9334e74b537ed0729b829331719dd2039d3d` | [View](https://explorer.testnet.arc.io/address/0x17ba9334e74b537ed0729b829331719dd2039d3d) |
 | TreasurySplitter v1 (active) | Arc Mainnet | `0x161d1E220b8C4E4C2b79387779074b6EEfCae3e3` | [View](https://explorer.arc.io/address/0x161d1E220b8C4E4C2b79387779074b6EEfCae3e3) |
+| TreasurySplitterFactory (multi-user) | Arc Testnet | `0xb7d1b52aecb53ad2d864e5e394be06fe097d8b0e` | [View](https://explorer.testnet.arc.io/address/0xb7d1b52aecb53ad2d864e5e394be06fe097d8b0e) |
+| TreasurySplitterFactory (multi-user) | Arc Mainnet | pending — deploy locally | — |
 
 ## Constructor Args Used
 

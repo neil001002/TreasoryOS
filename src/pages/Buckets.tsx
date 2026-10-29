@@ -4,6 +4,7 @@ import { isAddress } from 'viem'
 import { toast } from 'sonner'
 import { TREASURY_SPLITTER_ABI } from '@/lib/abi'
 import { useArcNetwork } from '@/context/NetworkContext'
+import { useTreasury } from '@/hooks/useTreasury'
 import { BucketList } from '@/components/BucketList'
 import { DistributeForm } from '@/components/DistributeForm'
 import { TxStatus } from '@/components/TxStatus'
@@ -24,10 +25,14 @@ const DEFAULT_ROWS: BucketRow[] = [
 export function Buckets() {
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
-  const { contractAddress, arcChainId } = useArcNetwork()
+  const { arcChainId } = useArcNetwork()
+  const { treasuryAddress } = useTreasury()
   const [rows, setRows] = useState<BucketRow[]>(DEFAULT_ROWS)
   const [configOpen, setConfigOpen] = useState(false)
 
+  // Use user's personal treasury address (from factory) if available,
+  // else fall back to the static address from env (legacy single-user)
+  const contractAddress = treasuryAddress
   const isDeployed = !!contractAddress
   const isWrongChain = chainId !== arcChainId
 
@@ -46,7 +51,7 @@ export function Buckets() {
 
   function handleUpdate() {
     if (isWrongChain) { switchChain({ chainId: arcChainId }); return }
-    if (!allValid || !address) return
+    if (!allValid || !address || !contractAddress) return
     const buckets = rows.map((r) => r.address as `0x${string}`)
     const percentages = rows.map((r) => BigInt(Math.round((parseInt(r.percentage) || 0) * 100)))
     updateConfig({

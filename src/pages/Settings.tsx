@@ -1,17 +1,21 @@
 import { useAccount, useReadContract } from 'wagmi'
 import { TREASURY_SPLITTER_ABI } from '@/lib/abi'
 import { useArcNetwork } from '@/context/NetworkContext'
+import { useTreasury } from '@/hooks/useTreasury'
 import { formatAddress, buildAddressUrl } from '@/lib/utils'
 import { WalletButton } from '@/components/WalletButton'
 import { ExternalLink } from 'lucide-react'
 
 export function Settings() {
   const { address } = useAccount()
-  const { contractAddress, arcChainId, usdcAddress, explorerBase, arcNetwork } = useArcNetwork()
+  const { arcChainId, usdcAddress, explorerBase, arcNetwork, factoryAddress } = useArcNetwork()
+  const { treasuryAddress } = useTreasury()
+
+  const contractAddress = treasuryAddress
   const isDeployed = !!contractAddress
 
   const { data: owner } = useReadContract({
-    address: contractAddress,
+    address: contractAddress ?? '0x0000000000000000000000000000000000000000',
     abi: TREASURY_SPLITTER_ABI,
     functionName: 'owner',
     chainId: arcChainId,
@@ -19,13 +23,14 @@ export function Settings() {
   })
 
   const rows = [
-    { label: 'Network', value: arcNetwork === 'mainnet' ? 'Arc Mainnet' : 'Arc Testnet', mono: false },
-    { label: 'Chain ID', value: String(arcChainId), mono: false },
-    { label: 'Connected Wallet', value: address ? formatAddress(address) : '—', mono: true, link: address ? buildAddressUrl(address) : undefined },
-    { label: 'Contract Owner', value: owner ? formatAddress(owner) : (isDeployed ? 'Loading...' : '—'), mono: true, link: owner ? buildAddressUrl(owner) : undefined },
-    { label: 'TreasurySplitter Address', value: contractAddress ? formatAddress(contractAddress) : 'Not deployed', mono: true, link: contractAddress ? buildAddressUrl(contractAddress) : undefined },
-    { label: 'USDC Address', value: formatAddress(usdcAddress), mono: true, link: buildAddressUrl(usdcAddress) },
-    { label: 'Explorer', value: explorerBase, mono: true, link: explorerBase },
+    { label: 'Network',               value: arcNetwork === 'mainnet' ? 'Arc Mainnet' : 'Arc Testnet', mono: false },
+    { label: 'Chain ID',              value: String(arcChainId), mono: false },
+    { label: 'Connected Wallet',      value: address ? formatAddress(address) : '—',                 mono: true,  link: address ? buildAddressUrl(address) : undefined },
+    { label: 'Contract Owner',        value: owner ? formatAddress(owner) : (isDeployed ? 'Loading...' : '—'), mono: true,  link: owner ? buildAddressUrl(owner) : undefined },
+    { label: 'Your Treasury',         value: contractAddress ? formatAddress(contractAddress) : 'Not deployed', mono: true,  link: contractAddress ? buildAddressUrl(contractAddress) : undefined },
+    { label: 'Factory Contract',      value: factoryAddress ? formatAddress(factoryAddress) : 'Not configured', mono: true,  link: factoryAddress ? buildAddressUrl(factoryAddress) : undefined },
+    { label: 'USDC Address',          value: formatAddress(usdcAddress), mono: true,  link: buildAddressUrl(usdcAddress) },
+    { label: 'Explorer',              value: explorerBase, mono: true,  link: explorerBase },
   ]
 
   return (
@@ -60,10 +65,10 @@ export function Settings() {
         </div>
       )}
 
-      {!isDeployed && (
+      {!isDeployed && address && (
         <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-700 space-y-1">
-          <p className="font-semibold">TreasurySplitter not deployed on this network</p>
-          <p>Switch to the network where you have deployed the contract, or deploy a new one.</p>
+          <p className="font-semibold">No treasury found for this wallet</p>
+          <p>Go to the Dashboard to set up your treasury.</p>
         </div>
       )}
     </div>

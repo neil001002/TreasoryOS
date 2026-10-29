@@ -1,6 +1,7 @@
 /**
- * useStableFXSwap — StableFX in-treasury USDC conversion hook.
+ * useStableFXSwap — bidirectional stablecoin swap hook.
  *
+ * Supports any tokenIn → tokenOut pair among USDC, EURC, cirBTC on Arc.
  * Pattern: estimate → user reviews → user clicks Swap → execute.
  * swap() is ONLY called from the explicit user action (executeSwap).
  * NEVER called from an effect, render, or after estimation automatically.
@@ -15,7 +16,7 @@ import { createViemAdapterFromProvider } from '@circle-fin/adapter-viem-v2'
 import type { EIP1193Provider } from 'viem'
 import { useConnectorClient, useSwitchChain, useAccount } from 'wagmi'
 import { useArcNetwork } from '@/context/NetworkContext'
-import { STABLEFX_SOURCE_TOKEN, getArcSwapChain } from '../lib/tokens'
+import { isNoOpSwap, isSameToken, getArcSwapChain } from '../lib/tokens'
 
 const appKit = new AppKit()
 
@@ -24,6 +25,7 @@ export type SwapStatus = 'idle' | 'estimating' | 'reviewed' | 'swapping' | 'succ
 export interface ReviewedSwap {
   estimate: SwapEstimate
   amountIn: string
+  tokenIn: string
   tokenOut: string
   account: string
 }
@@ -42,30 +44,24 @@ export function useStableFXSwap() {
   const { data: connectorClient } = useConnectorClient()
   const { switchChainAsync } = useSwitchChain()
   const { address } = useAccount()
-  const [state, setState] = useState<SwapState>({
-    status: 'idle',
-    reviewed: null,
-  })
+  const [state, setState] = useState<SwapState>({ status: 'idle', reviewed: null })
 
   const getAdapter = useCallback(async () => {
     if (!connectorClient) throw new Error('Wallet not connected')
-
-    // Must be on Arc to swap Arc tokens.
     if (connectorClient.chain.id !== arcChainId) {
       await switchChainAsync({ chainId: arcChainId })
     }
-
     const provider = connectorClient.transport as unknown as EIP1193Provider
     return createViemAdapterFromProvider({ provider })
   }, [connectorClient, switchChainAsync, arcChainId])
 
   /** Step 1: Get a rate estimate. Does NOT execute the swap. */
   const estimateSwap = useCallback(
-    async (amountIn: string, tokenOut: string) => {
+    async (amountIn: string, tokenIn: string, tokenOut: string) => {
       if (!address) throw new Error('Wallet not connected')
       if (!amountIn || Number(amountIn) <= 0) throw new Error('Invalid amount')
-      // Guard: USDC → USDC or NATIVE is a no-op on Arc (NATIVE === USDC).
-      if (tokenOut === 'USDC' || tokenOut === 'NATIVE') {
+      if (isSameToken(tokenIn, tokenOut)) throw new Error('Choose two different tokens to swap.')
+      if (isNoOpSwap(tokenIn, tokenOut)) {
         throw new Error('USDC and NATIVE are the same asset on Arc. Choose EURC or cirBTC.')
       }
 
@@ -76,21 +72,16 @@ export function useStableFXSwap() {
         const arcChainStr = getArcSwapChain(isMainnet) as `${SwapChain}`
         const estimate = await appKit.estimateSwap({
           from: { adapter, chain: arcChainStr },
-          tokenIn: STABLEFX_SOURCE_TOKEN,
+          tokenIn,
           tokenOut,
           amountIn,
-          config: { slippageBps: 100 }, // 1% slippage
+          config: { slippageBps: 100 },
         })
 
         setState((prev) => ({
           ...prev,
           status: 'reviewed',
-          reviewed: {
-            estimate,
-            amountIn,
-            tokenOut,
-            account: address,
-          },
+          reviewed: { estimate, amountIn, tokenIn, tokenOut, account: address },
           errorMessage: undefined,
         }))
       } catch (err) {
@@ -121,7 +112,7 @@ export function useStableFXSwap() {
       const arcChainStr = getArcSwapChain(isMainnet) as `${SwapChain}`
       const result = await appKit.swap({
         from: { adapter, chain: arcChainStr },
-        tokenIn: STABLEFX_SOURCE_TOKEN,
+        tokenIn: reviewed.tokenIn,
         tokenOut: reviewed.tokenOut,
         amountIn: reviewed.amountIn,
         config: { slippageBps: 100 },

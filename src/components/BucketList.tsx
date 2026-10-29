@@ -2,15 +2,18 @@ import { useReadContract } from 'wagmi'
 import { erc20Abi } from 'viem'
 import { TREASURY_SPLITTER_ABI } from '@/lib/abi'
 import { useArcNetwork } from '@/context/NetworkContext'
+import { useTreasury } from '@/hooks/useTreasury'
 import { formatUSDC, formatAddress, buildAddressUrl, BUCKET_NAMES, BUCKET_BG } from '@/lib/utils'
 import { ExternalLink } from 'lucide-react'
 
 export function BucketList() {
-  const { contractAddress, usdcAddress, arcChainId, explorerBase } = useArcNetwork()
+  const { usdcAddress, arcChainId, explorerBase } = useArcNetwork()
+  const { treasuryAddress } = useTreasury()
+  const contractAddress = treasuryAddress
   const isDeployed = !!contractAddress
 
   const { data: bucketsData, isLoading } = useReadContract({
-    address: contractAddress,
+    address: contractAddress as `0x${string}`,
     abi: TREASURY_SPLITTER_ABI,
     functionName: 'getBuckets',
     chainId: arcChainId,

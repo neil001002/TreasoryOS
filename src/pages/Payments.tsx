@@ -4,6 +4,7 @@ import { erc20Abi } from 'viem'
 import { toast } from 'sonner'
 import { TREASURY_SPLITTER_ABI } from '@/lib/abi'
 import { useArcNetwork } from '@/context/NetworkContext'
+import { useTreasury } from '@/hooks/useTreasury'
 import { ContractBalanceCard } from '@/components/BalanceCard'
 import { PayContractorForm } from '@/components/PayContractorForm'
 import { TxStatus } from '@/components/TxStatus'
@@ -14,7 +15,9 @@ export function Payments() {
   const [depositAmount, setDepositAmount] = useState('')
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
-  const { contractAddress, usdcAddress, arcChainId } = useArcNetwork()
+  const { usdcAddress, arcChainId } = useArcNetwork()
+  const { treasuryAddress } = useTreasury()
+  const contractAddress = treasuryAddress
 
   const isDeployed = !!contractAddress
   const isWrongChain = chainId !== arcChainId
@@ -36,7 +39,7 @@ export function Payments() {
 
   function handleApprove() {
     if (isWrongChain) { switchChain({ chainId: arcChainId }); return }
-    if (!parsedDeposit) return
+    if (!parsedDeposit || !contractAddress) return
     approve({
       address: usdcAddress,
       abi: erc20Abi,
@@ -47,7 +50,7 @@ export function Payments() {
   }
 
   function handleDeposit() {
-    if (!parsedDeposit) return
+    if (!parsedDeposit || !contractAddress) return
     deposit({
       address: contractAddress,
       abi: TREASURY_SPLITTER_ABI,

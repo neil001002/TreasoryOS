@@ -4,6 +4,7 @@ import { erc20Abi } from 'viem'
 import { toast } from 'sonner'
 import { TREASURY_SPLITTER_ABI } from '@/lib/abi'
 import { useArcNetwork } from '@/context/NetworkContext'
+import { useTreasury } from '@/hooks/useTreasury'
 import { parseUSDCInput } from '@/lib/utils'
 import { TxStatus } from './TxStatus'
 import { Send } from 'lucide-react'
@@ -12,7 +13,9 @@ export function DistributeForm() {
   const [amount, setAmount] = useState('')
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
-  const { contractAddress, usdcAddress, arcChainId } = useArcNetwork()
+  const { usdcAddress, arcChainId } = useArcNetwork()
+  const { treasuryAddress } = useTreasury()
+  const contractAddress = treasuryAddress
 
   const isDeployed = !!contractAddress
   const isWrongChain = chainId !== arcChainId
@@ -28,11 +31,12 @@ export function DistributeForm() {
   function handleApprove() {
     if (isWrongChain) { switchChain({ chainId: arcChainId }); return }
     if (!parsedAmount || parsedAmount === 0n) return
+    if (!contractAddress) return
     approve({ address: usdcAddress, abi: erc20Abi, functionName: 'approve', args: [contractAddress, parsedAmount], chainId: arcChainId })
   }
 
   function handleDistribute() {
-    if (!parsedAmount || parsedAmount === 0n) return
+    if (!parsedAmount || parsedAmount === 0n || !contractAddress) return
     distribute({ address: contractAddress, abi: TREASURY_SPLITTER_ABI, functionName: 'distribute', args: [parsedAmount], chainId: arcChainId })
   }
 

@@ -1,6 +1,7 @@
 import { useAccount, useReadContract } from 'wagmi'
 import { erc20Abi } from 'viem'
 import { useArcNetwork } from '@/context/NetworkContext'
+import { useTreasury } from '@/hooks/useTreasury'
 import { formatUSDC } from '@/lib/utils'
 import { TokenUSDC } from '@web3icons/react'
 
@@ -45,7 +46,9 @@ export function BalanceCard({ label, address, className = '' }: BalanceCardProps
 }
 
 export function ContractBalanceCard() {
-  const { usdcAddress, arcChainId, contractAddress } = useArcNetwork()
+  const { usdcAddress, arcChainId } = useArcNetwork()
+  const { treasuryAddress } = useTreasury()
+  const contractAddress = treasuryAddress
   const isDeployed = !!contractAddress
 
   const { data: balance, isLoading } = useReadContract({

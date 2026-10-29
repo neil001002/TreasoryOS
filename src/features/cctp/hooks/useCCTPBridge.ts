@@ -1,15 +1,14 @@
 /**
- * useCCTPBridge — CCTP bridge hook for TreasuryOS.
+ * useCCTPBridge — bidirectional CCTP bridge hook.
  *
- * Flow:
- *   1. User selects source chain + amount → clicks "Bridge to Arc"
- *   2. Switch wallet to source chain (if needed)
- *   3. Build Viem provider adapter with withAddChainFallback
- *   4. Call appKit.bridge() — result.steps contains approve/burn/attestation/mint
- *   5. Surface final step states from the result
+ * Supports both:
+ *   - "to Arc": other chain → Arc (existing behaviour)
+ *   - "from Arc": Arc → other chain (new)
+ *
+ * For "to Arc": wallet is switched to the external chain before bridging.
+ * For "from Arc": wallet is switched to Arc, recipient defaults to connected address.
  *
  * Security: bridge() is ONLY called from the explicit user action (handleBridge).
- * Never called from an effect, render, or estimation callback.
  */
 
 import { useState, useCallback } from 'react'
@@ -21,11 +20,11 @@ import { useArcNetwork } from '@/context/NetworkContext'
 import { type CctpSourceChain, getArcCircleId, CCTP_SOURCE_CHAINS } from '../lib/chains'
 import { withAddChainFallback } from '../lib/withAddChainFallback'
 
-// One AppKit instance for the lifetime of the module.
 const appKit = new AppKit()
 
 export type BridgeStepName = 'approve' | 'burn' | 'fetchAttestation' | 'mint'
 export type BridgeStepState = 'idle' | 'pending' | 'success' | 'error'
+export type BridgeDirection = 'toArc' | 'fromArc'
 
 export interface BridgeStep {
   name: BridgeStepName
@@ -41,6 +40,7 @@ interface BridgeState {
   steps: BridgeStep[]
   errorMessage?: string
   finalTxHash?: string
+  finalExplorerUrl?: string
 }
 
 const STEP_NAMES: BridgeStepName[] = ['approve', 'burn', 'fetchAttestation', 'mint']
@@ -50,7 +50,7 @@ function makeInitialSteps(): BridgeStep[] {
 }
 
 export function useCCTPBridge() {
-  const { isMainnet } = useArcNetwork()
+  const { isMainnet, arcChainId } = useArcNetwork()
   const { data: connectorClient } = useConnectorClient()
   const { switchChainAsync } = useSwitchChain()
   const [state, setState] = useState<BridgeState>({
@@ -59,72 +59,70 @@ export function useCCTPBridge() {
   })
 
   const handleBridge = useCallback(
-    async (sourceChain: CctpSourceChain, amount: string, recipientAddress: string) => {
+    async (
+      direction: BridgeDirection,
+      externalChain: CctpSourceChain,
+      amount: string,
+      recipientAddress: string,
+    ) => {
       if (!connectorClient) throw new Error('Wallet not connected')
       if (!amount || Number(amount) <= 0) throw new Error('Invalid amount')
 
-      setState({
-        status: 'bridging',
-        steps: makeInitialSteps(),
-        errorMessage: undefined,
-        finalTxHash: undefined,
-      })
+      setState({ status: 'bridging', steps: makeInitialSteps(), errorMessage: undefined, finalTxHash: undefined })
 
       try {
-        // Switch wallet to the source chain if needed.
-        if (connectorClient.chain.id !== sourceChain.chainId) {
-          await switchChainAsync({ chainId: sourceChain.chainId })
-        }
+        const arcCircleId = getArcCircleId(isMainnet) as `${BridgeChain}`
+        const extCircleId = externalChain.circleId as `${BridgeChain}`
 
-        // All chains the wallet may need to add (for mint step chain-switch).
+        // All chains the wallet may need for chain-switches during the bridge flow.
         const allViemChains = CCTP_SOURCE_CHAINS.map((c) => c.viemChain)
-
         const provider = connectorClient.transport as unknown as EIP1193Provider
         const adapter = await createViemAdapterFromProvider({
           provider: withAddChainFallback(provider, allViemChains),
         })
 
-        const destCircleId = getArcCircleId(isMainnet) as `${BridgeChain}`
-        const srcCircleId = sourceChain.circleId as `${BridgeChain}`
+        // Switch wallet to the initiating chain.
+        const initiatingChainId = direction === 'toArc' ? externalChain.chainId : arcChainId
+        if (connectorClient.chain.id !== initiatingChainId) {
+          await switchChainAsync({ chainId: initiatingChainId })
+        }
 
-        // Mark all steps pending while bridging.
+        // Mark steps pending while bridging.
         setState((prev) => ({
           ...prev,
           steps: prev.steps.map((s) => ({ ...s, state: 'pending' as BridgeStepState })),
         }))
 
-        // Chain identifiers match the BridgeChain enum — cast via unknown to satisfy the
-        // internal BridgeChainIdentifier type that is not publicly exported.
         type AnyChain = Parameters<typeof appKit.bridge>[0]['from']['chain']
+
         const result = await appKit.bridge({
           token: 'USDC',
-          from: { adapter, chain: srcCircleId as unknown as AnyChain },
+          from: {
+            adapter,
+            chain: (direction === 'toArc' ? extCircleId : arcCircleId) as unknown as AnyChain,
+          },
           to: {
             adapter,
-            chain: destCircleId as unknown as AnyChain,
+            chain: (direction === 'toArc' ? arcCircleId : extCircleId) as unknown as AnyChain,
             recipientAddress,
           },
           amount,
         })
 
-        // Parse step states from the result.
-        const mintStep = result.steps?.find((s) => s.name === 'mint')
+        // The "receiving" step is 'mint' when bridging to Arc, 'burn' destination when bridging from Arc.
+        const finalStep = result.steps?.find((s) => s.name === (direction === 'toArc' ? 'mint' : 'burn'))
 
         setState({
           status: result.state === 'success' ? 'success' : 'error',
-          errorMessage:
-            result.state !== 'success' ? 'Bridge did not complete. Check step details.' : undefined,
-          finalTxHash: (mintStep as { txHash?: string } | undefined)?.txHash,
+          errorMessage: result.state !== 'success' ? 'Bridge did not complete. Check step details.' : undefined,
+          finalTxHash: (finalStep as { txHash?: string } | undefined)?.txHash,
+          finalExplorerUrl: (finalStep as { explorerUrl?: string } | undefined)?.explorerUrl,
           steps: STEP_NAMES.map((name) => {
             const rs = result.steps?.find((s) => s.name === name)
             if (!rs) return { name, state: 'idle' as BridgeStepState }
             return {
               name,
-              state: (rs.state === 'success'
-                ? 'success'
-                : rs.state === 'error'
-                  ? 'error'
-                  : 'idle') as BridgeStepState,
+              state: (rs.state === 'success' ? 'success' : rs.state === 'error' ? 'error' : 'idle') as BridgeStepState,
               txHash: (rs as { txHash?: string })?.txHash,
               explorerUrl: (rs as { explorerUrl?: string })?.explorerUrl,
             }
@@ -132,14 +130,10 @@ export function useCCTPBridge() {
         })
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error'
-        setState((prev) => ({
-          ...prev,
-          status: 'error',
-          errorMessage: msg,
-        }))
+        setState((prev) => ({ ...prev, status: 'error', errorMessage: msg }))
       }
     },
-    [connectorClient, switchChainAsync, isMainnet],
+    [connectorClient, switchChainAsync, isMainnet, arcChainId],
   )
 
   const reset = useCallback(() => {

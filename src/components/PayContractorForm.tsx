@@ -4,6 +4,7 @@ import { isAddress } from 'viem'
 import { toast } from 'sonner'
 import { TREASURY_SPLITTER_ABI } from '@/lib/abi'
 import { useArcNetwork } from '@/context/NetworkContext'
+import { useTreasury } from '@/hooks/useTreasury'
 import { parseUSDCInput } from '@/lib/utils'
 import { TxStatus } from './TxStatus'
 import { UserCheck } from 'lucide-react'
@@ -16,7 +17,9 @@ export function PayContractorForm() {
 
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
-  const { contractAddress, arcChainId } = useArcNetwork()
+  const { arcChainId } = useArcNetwork()
+  const { treasuryAddress } = useTreasury()
+  const contractAddress = treasuryAddress
 
   const isDeployed = !!contractAddress
   const isWrongChain = chainId !== arcChainId
@@ -31,6 +34,7 @@ export function PayContractorForm() {
   function handlePay() {
     if (isWrongChain) { switchChain({ chainId: arcChainId }); return }
     if (!canSubmit) return
+    if (!contractAddress) return
     payContractor({ address: contractAddress, abi: TREASURY_SPLITTER_ABI, functionName: 'payContractor', args: [toAddress, parsedAmount], chainId: arcChainId })
   }
 

@@ -16,6 +16,8 @@ const ARC_MAINNET_ID  = 5042
 
 const TESTNET_CONTRACT = (import.meta.env.VITE_TREASURY_SPLITTER_TESTNET as string | undefined) ?? ''
 const MAINNET_CONTRACT = (import.meta.env.VITE_TREASURY_SPLITTER_MAINNET as string | undefined) ?? ''
+const TESTNET_FACTORY  = (import.meta.env.VITE_TREASURY_FACTORY_TESTNET  as string | undefined) ?? ''
+const MAINNET_FACTORY  = (import.meta.env.VITE_TREASURY_FACTORY_MAINNET  as string | undefined) ?? ''
 
 const LS_KEY = 'treasuryos_network'
 
@@ -34,6 +36,7 @@ interface NetworkContextValue {
   isMainnet: boolean
   arcChainId: number
   contractAddress: `0x${string}`
+  factoryAddress: `0x${string}`
   usdcAddress: `0x${string}`
   usdcDecimals: number
   explorerBase: string
@@ -60,6 +63,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     isMainnet,
     arcChainId,
     contractAddress: (isMainnet ? MAINNET_CONTRACT : TESTNET_CONTRACT) as `0x${string}`,
+    factoryAddress:  (isMainnet ? MAINNET_FACTORY  : TESTNET_FACTORY)  as `0x${string}`,
     usdcAddress: (usdcFact?.address ?? '') as `0x${string}`,
     usdcDecimals: usdcFact?.decimals ?? 6,
     explorerBase: chain.explorerBase,
